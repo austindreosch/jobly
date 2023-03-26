@@ -43,6 +43,19 @@ function ensureLoggedIn(req, res, next) {
 }
 
 
+function ensureAdmin(req,res,next){
+  try {
+    const user = req.user;
+    if (!user || !user.isAdmin) {
+      throw new UnauthorizedError("User must be an admin to perform this action.");
+    }
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+
 module.exports = {
   authenticateJWT,
   ensureLoggedIn,
