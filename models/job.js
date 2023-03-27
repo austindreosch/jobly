@@ -35,35 +35,81 @@ class Job {
         let whereExpressions = [];
         let queryValues = [];
 
-        if (name) {
-            queryValues.push(`%${name}%`);
-            whereExpressions.push(`name ILIKE $${queryValues.length}`);
+        if (title) {
+            queryValues.push(`%${title}%`);
+            whereExpressions.push(`title ILIKE $${queryValues.length}`);
           }
         
           if (minEmployees !== undefined) {
-            queryValues.push(minEmployees);
-            whereExpressions.push(`num_employees >= $${queryValues.length}`);
+            queryValues.push(minSalary);
+            whereExpressions.push(`salary >= $${queryValues.length}`);
           }
         
           if (maxEmployees !== undefined) {
-            queryValues.push(maxEmployees);
-            whereExpressions.push(`num_employees <= $${queryValues.length}`);
+            queryValues.push(hasEquity);
+            whereExpressions.push(`equity > 0`);
           }
         
           if (whereExpressions.length) {
             query += " WHERE " + whereExpressions.join(" AND ");
           }
         
-          query += " ORDER BY name";
+          query += " ORDER BY title";
         
-          const companiesRes = await db.query(query, queryValues);
-          return companiesRes.rows;
+          const jobsRes = await db.query(query, queryValues);
+          return jobsRes.rows;
     }
 
     // get
-    // update
-    // remove 
+    static async get(title) {
+        const result = await db.query(
+            `SELECT id, title, salary, equity, company_handle
+            FROM jobs
+            WHERE title = $1`, [title]);
+    
+        const job = result.rows[0];
+    
+        if (!job) throw new NotFoundError(`No job: ${title}`);
+        return job;
+      }
 
+    // update
+    static async update(id, data) {
+        const { setCols, values } = sqlForPartialUpdate(data, {
+            title: "title",
+            salary: "salary",
+            equity: "equity"
+        });
+
+        const idVarIdx = "$" + (values.length + 1);
+
+        const querySql = `UPDATE jobs
+                          SET ${setCols}        
+                          WHERE title = ${idVarIdx}
+                          RETURNING id, title, salary, equity, company_handle`;
+
+        const result = await db.query(querySql, [...values, id]);
+        const job = result.rows[0];
+    
+        if (!job) throw new NotFoundError(`No job: ${id}`);
+    
+        return job;
+    }
+
+
+
+    // remove 
+    static async remove(id) {
+        const result = await db.query(
+              `DELETE
+               FROM jobs
+               WHERE id = $1
+               RETURNING id`,
+            [id]);
+        const job = result.rows[0];
+    
+        if (!job) throw new NotFoundError(`No company: ${id}`);
+      }
 }
 
 
